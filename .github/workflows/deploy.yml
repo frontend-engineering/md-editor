@@ -1,0 +1,53 @@
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+
+      - run: npm install
+      - id: build
+        run: npm run build
+      - id: publish
+        uses: TencentCloud/cos-action@v1
+        with:
+          secret_id: ${{ secrets.TENCENT_SEC_ID }}
+          secret_key: ${{ secrets.TENCENT_SEC_KEY }}
+          cos_bucket: ${{ secrets.COS_BUCKET }}
+          cos_region: ${{ secrets.COS_REGION }}
+          local_path: dist
+          remote_path: md
+          clean: true
+          accelerate: true
+      - id: purge
+        run: TENCENT_SEC_ID=${{ secrets.TENCENT_SEC_ID }} TENCENT_SEC_KEY=${{ secrets.TENCENT_SEC_KEY }} DOMAIN=${{ secrets.DOMAIN }} npm run purge
+
+      - name: Report result by mail
+        if: always()
+        uses: dawidd6/action-send-mail@v3.7.1
+        with:
+          # mail server settings
+          server_address: smtp.163.com
+          server_port: 465
+          secure: true
+           # Optional (recommended): mail server username:
+          username: ${{secrets.MAIL_USERNAME}}
+          # Optional (recommended) mail server password:
+          password: ${{secrets.MAIL_PASSWORD}}
+          # email subject
+          subject: ${{ github.job }} job of ${{ github.repository }} has ${{ job.status }}
+          # email body as text
+          body: ${{ github.job }} job in worflow ${{ github.workflow }} of ${{ github.repository }} has ${{ job.status }} <br><br> --- <br>${{ github.steps }}
+          # comma-separated string, send email to
+          to: ${{ secrets.NOTIFY_GROUP }}
+          # from email name
+          from: Github boy
