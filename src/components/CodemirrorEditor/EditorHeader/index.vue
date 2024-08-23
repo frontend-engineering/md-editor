@@ -72,6 +72,7 @@ const {
   isCiteStatus,
   output,
   editor,
+  editorContent,
 } = storeToRefs(store)
 
 const {
@@ -125,6 +126,9 @@ async function inputTxt() {
       },
     },
   })
+
+  editorContent.value = editor.value
+  editorRefresh()
 }
 
 // 复制到微信公众号
