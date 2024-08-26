@@ -127,10 +127,10 @@ async function loadRemote() {
   const postPromise = fetch(`https://my.webinfra.cloud/api/rewritedButUnpublishedPost`)
     .then(response => response.json())
   return Promise.all([getRandomImgs(), postPromise])
-    .then((resp) => {
+    .then(async (resp) => {
       const [urls, postData] = resp
       console.log(`load remote data: `, urls, postData)
-      const { content: apiResponseText, title } = postData
+      const { content: apiResponseText, title, id } = postData
       const editorDom = document.querySelector(`#editor`)
       editorDom.value = `# ${title}\n\n ![img](${urls[0]})\n\n${apiResponseText}`
       // const editor = CodeMirror.fromTextArea(editorDom, {})
@@ -176,7 +176,8 @@ async function loadRemote() {
       })
 
       editorContent.value = editor.value
-      return editorRefresh()
+      await editorRefresh()
+      return id
     })
 }
 
@@ -235,7 +236,7 @@ async function doSubmit(article) {
   })
 }
 async function loadRemoteAndPost() {
-  await loadRemote()
+  const postId = await loadRemote()
   await sleep(1000)
 
   const auto = {
@@ -247,12 +248,22 @@ async function loadRemoteAndPost() {
     content: output.value,
   }
   console.log(`sync auto: `, auto)
-  doSubmit({
+  await doSubmit({
     thumb: auto.thumb,
     title: auto.title,
     desc: auto.desc,
     content: auto.content,
   })
+  return fetch(`https://my.webinfra.cloud/api/post/${postId}/publish`, {
+    method: `POST`,
+    headers: {
+      'Content-Type': `application/json`,
+    },
+  })
+    .then(response => response.json())
+    .then((resp) => {
+      console.log(`publish resp: `, resp)
+    })
   return
   window.syncPost({
     thumb: auto.thumb,
