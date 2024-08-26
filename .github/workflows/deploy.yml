@@ -32,7 +32,6 @@ jobs:
         run: TENCENT_SEC_ID=${{ secrets.TENCENT_SEC_ID }} TENCENT_SEC_KEY=${{ secrets.TENCENT_SEC_KEY }} DOMAIN=${{ secrets.DOMAIN }} npm run purge
 
       - name: Report result by mail
-        if: always()
         uses: dawidd6/action-send-mail@v3.7.1
         with:
           # mail server settings
