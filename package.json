@@ -7,6 +7,7 @@
     "start": "npm run dev",
     "dev": "vite --host",
     "build": "run-p type-check \"build:only {@}\" --",
+    "purge": "node ./scripts/purge.js",
     "build:only": "vite build",
     "build:h5-netlify": "cross-env SERVER_ENV=NETLIFY vite build",
     "build:cli": "npm run build && npm run shx rm -rf md-cli/dist && npm run shx rm -rf dist/**/*.map && npm run shx cp -r dist md-cli/ && cd md-cli && npm run pack",
