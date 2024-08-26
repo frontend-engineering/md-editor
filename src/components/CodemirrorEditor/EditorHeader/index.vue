@@ -28,6 +28,13 @@ const emit = defineEmits([
   `startCopy`,
   `endCopy`,
 ])
+async function sleep(timeout) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(``)
+    }, timeout || 3000)
+  })
+}
 const defaultKeyMap = CodeMirror.keyMap.default
 const modPrefix
   = defaultKeyMap === CodeMirror.keyMap.macDefault ? `Cmd` : `Ctrl`
@@ -80,6 +87,203 @@ const {
   editorRefresh,
   citeStatusChanged,
 } = store
+
+async function auth() {
+  return fetch(`https://api.webinfra.cloud/cms-admin-api/user/login`, {
+    method: `POST`,
+    headers: {
+      'Content-Type': `application/json`,
+    },
+    body: JSON.stringify({
+      username: import.meta.env.VITE_CMS_USER,
+      password: import.meta.env.VITE_CMS_PW,
+    }),
+  }).then(resp => resp.json())
+    .then((resp) => {
+      console.log(`auth resp: `, resp)
+      return resp?.at.token
+    })
+}
+
+async function getRandomImgs() {
+  const token = await auth()
+  if (!token)
+    return
+  return fetch(`https://api.webinfra.cloud/cms-admin-api/apps/getRandomImages?tag=warehouse&count=1`, {
+    method: `GET`,
+    headers: {
+      'Content-Type': `application/json`,
+      'Authorization': `Bearer ${token}`,
+    },
+  })
+    .then(resp => resp.json())
+    .then((resp) => {
+      console.log(`get remote images: `, resp)
+      return resp?.map(img => img?.urls?.regular?.replace(`assets-1306445775.cos.ap-shanghai.myqcloud.com`, `assets.greatermaker.cn`))
+    })
+}
+
+async function loadRemote() {
+  const postPromise = fetch(`https://my.webinfra.cloud/api/rewritedButUnpublishedPost`)
+    .then(response => response.json())
+  return Promise.all([getRandomImgs(), postPromise])
+    .then((resp) => {
+      const [urls, postData] = resp
+      console.log(`load remote data: `, urls, postData)
+      const { content: apiResponseText, title } = postData
+      const editorDom = document.querySelector(`#editor`)
+      editorDom.value = `# ${title}\n\n ![img](${urls[0]})\n\n${apiResponseText}`
+      // const editor = CodeMirror.fromTextArea(editorDom, {})
+      // editor.value = `fdsafdsafds`
+      editor.value = CodeMirror.fromTextArea(editorDom, {
+        mode: `text/x-markdown`,
+        theme: `xq-light`,
+        lineNumbers: false,
+        lineWrapping: true,
+        styleActiveLine: true,
+        autoCloseBrackets: true,
+        extraKeys: {
+          [`${modPrefix}-F`]: function autoFormat(editor) {
+            const doc = formatDoc(editor.getValue(0))
+            editor.setValue(doc)
+          },
+          [`${modPrefix}-B`]: function bold(editor) {
+            const selected = editor.getSelection()
+            editor.replaceSelection(`**${selected}**`)
+          },
+          [`${modPrefix}-I`]: function italic(editor) {
+            const selected = editor.getSelection()
+            editor.replaceSelection(`*${selected}*`)
+          },
+          [`${modPrefix}-D`]: function del(editor) {
+            const selected = editor.getSelection()
+            editor.replaceSelection(`~~${selected}~~`)
+          },
+          [`${modPrefix}-K`]: function italic(editor) {
+            const selected = editor.getSelection()
+            editor.replaceSelection(`[${selected}]()`)
+          },
+          [`${modPrefix}-E`]: function code(editor) {
+            const selected = editor.getSelection()
+            editor.replaceSelection(`\`${selected}\``)
+          },
+          // 预备弃用
+          [`${modPrefix}-L`]: function code(editor) {
+            const selected = editor.getSelection()
+            editor.replaceSelection(`\`${selected}\``)
+          },
+        },
+      })
+
+      editorContent.value = editor.value
+      return editorRefresh()
+    })
+}
+
+async function doSubmit(article) {
+  function getPost() {
+    const post = { article }
+    post.title = article.title
+    if (article.content) {
+      post.content = article.content
+    }
+    else if (article.markdown) {
+      post.markdown = article.content
+    }
+    if (article.thumb) {
+      post.thumb = article.thumb
+    }
+
+    post.desc = article.desc
+      ? article.desc
+      : article.content.substring(0, 20)
+    // post.desc = document.body.getAttribute('data-msg_desc');
+    console.log(post)
+    return post
+  }
+
+  const getSelectedAc = async () => {
+    return new Promise((resolve) => {
+      window.$syncer.getAccounts((resp) => {
+        console.log(`allAccounts`, resp)
+        resolve(resp)
+      })
+    }).then(list => list.filter(item => item.type === `weixin`))
+  }
+
+  const selectedAc = await getSelectedAc()
+
+  return new Promise((resolve) => {
+    window.$syncer.addTask(
+      {
+        post: getPost(),
+        accounts: selectedAc,
+      },
+      (status) => {
+        console.log(`status`, status)
+        if (status?.status === `done`) {
+          resolve(status)
+        }
+        else if (status?.status !== `uploading`) {
+          rejects(staus)
+        }
+      },
+      () => {
+        console.log(`send`)
+      },
+    )
+  })
+}
+async function loadRemoteAndPost() {
+  await loadRemote()
+  await sleep(1000)
+
+  const auto = {
+    thumb: document.querySelector(`#output img`)?.src,
+    title: [1, 2, 3, 4, 5, 6]
+      .map(h => document.querySelector(`#output h${h}`))
+      .filter(h => h)[0].textContent,
+    desc: document.querySelector(`#output p`).textContent,
+    content: output.value,
+  }
+  console.log(`sync auto: `, auto)
+  doSubmit({
+    thumb: auto.thumb,
+    title: auto.title,
+    desc: auto.desc,
+    content: auto.content,
+  })
+  return
+  window.syncPost({
+    thumb: auto.thumb,
+    title: auto.title,
+    desc: auto.desc,
+    content: auto.content,
+  })
+  return
+  const container = document.querySelector(`.header-container`)
+  const postBtn = container.children[5]
+  console.log(`post btn: `, postBtn)
+  postBtn.click()
+
+  // 点击发布
+  await sleep(1000)
+  const confirmBtn = document.querySelectorAll(`div[aria-label='发布'] .el-dialog__footer > button`)[1]
+  confirmBtn.click()
+
+  // 选择微信channel
+  await sleep(1000)
+  const accountList = [...document.querySelector(`.all-pubaccounts`).children]
+  const account = accountList.find(item => item.querySelector(`span > img`).src === `https://mp.weixin.qq.com/favicon.ico`)
+  console.log(`accoutn `, account)
+  if (!account)
+    return
+  account.querySelector(`span`).click()
+
+  // 点击同步
+  const syncBtn = document.querySelector(`div[aria-label='同步文章'] .el-dialog__footer button`)
+  syncBtn.click()
+}
 
 async function inputTxt() {
   const txt = await navigator.clipboard.readText()
@@ -239,6 +443,12 @@ function copy() {
       <StyleDropdown />
       <HelpDropdown />
     </el-space>
+    <el-button plain type="primary" @click="loadRemote">
+      远程加载
+    </el-button>
+    <el-button plain type="primary" @click="loadRemoteAndPost">
+      自动发布
+    </el-button>
     <el-button plain type="primary" @click="inputTxt">
       加载剪贴板
     </el-button>
