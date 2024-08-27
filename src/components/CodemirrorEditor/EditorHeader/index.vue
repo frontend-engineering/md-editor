@@ -89,14 +89,17 @@ const {
 } = store
 
 async function auth() {
+  const search = new URLSearchParams(window.location.search)
+  const user = search.get(`user`)
+  const pw = search.get(`pw`)
   return fetch(`https://api.webinfra.cloud/cms-admin-api/user/login`, {
     method: `POST`,
     headers: {
       'Content-Type': `application/json`,
     },
     body: JSON.stringify({
-      username: import.meta.env.VITE_CMS_USER,
-      password: import.meta.env.VITE_CMS_PW,
+      username: import.meta.env.VITE_CMS_USER || user,
+      password: import.meta.env.VITE_CMS_PW || pw,
     }),
   }).then(resp => resp.json())
     .then((resp) => {
