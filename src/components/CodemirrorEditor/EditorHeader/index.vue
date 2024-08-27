@@ -1,5 +1,6 @@
+<!-- eslint-disable antfu/top-level-function -->
 <script setup>
-import { nextTick } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { ElNotification } from 'element-plus'
 import CodeMirror from 'codemirror'
@@ -35,6 +36,9 @@ async function sleep(timeout) {
     }, timeout || 3000)
   })
 }
+const loading = ref(false)
+const haltPosting = ref(false)
+
 const defaultKeyMap = CodeMirror.keyMap.default
 const modPrefix
   = defaultKeyMap === CodeMirror.keyMap.macDefault ? `Cmd` : `Ctrl`
@@ -133,6 +137,8 @@ async function loadRemote() {
     .then(async (resp) => {
       const [urls, postData] = resp
       console.log(`load remote data: `, urls, postData)
+      if (!postData)
+        return null
       const { content: apiResponseText, title, id } = postData
       const editorDom = document.querySelector(`#editor`)
       editorDom.value = `# ${title}\n\n ![img](${urls[0]})\n\n${apiResponseText}`
@@ -239,34 +245,50 @@ async function doSubmit(article) {
   })
 }
 async function loadRemoteAndPost() {
-  const postId = await loadRemote()
-  await sleep(1000)
+  loading.value = true
+  try {
+    const postId = await loadRemote()
+    if (!postId) {
+      // all post published
+      haltPosting.value = true
+    }
+    await sleep(1000)
 
-  const auto = {
-    thumb: document.querySelector(`#output img`)?.src,
-    title: [1, 2, 3, 4, 5, 6]
-      .map(h => document.querySelector(`#output h${h}`))
-      .filter(h => h)[0].textContent,
-    desc: document.querySelector(`#output p`).textContent,
-    content: output.value,
-  }
-  console.log(`sync auto: `, auto)
-  await doSubmit({
-    thumb: auto.thumb,
-    title: auto.title,
-    desc: auto.desc,
-    content: auto.content,
-  })
-  return fetch(`https://my.webinfra.cloud/api/post/${postId}/publish`, {
-    method: `POST`,
-    headers: {
-      'Content-Type': `application/json`,
-    },
-  })
-    .then(response => response.json())
-    .then((resp) => {
-      console.log(`publish resp: `, resp)
+    const auto = {
+      thumb: document.querySelector(`#output img`)?.src,
+      title: [1, 2, 3, 4, 5, 6]
+        .map(h => document.querySelector(`#output h${h}`))
+        .filter(h => h)[0].textContent,
+      desc: document.querySelector(`#output p`).textContent,
+      content: output.value,
+    }
+    console.log(`sync auto: `, auto)
+    await doSubmit({
+      thumb: auto.thumb,
+      title: auto.title,
+      desc: auto.desc,
+      content: auto.content,
     })
+    return fetch(`https://my.webinfra.cloud/api/post/${postId}/publish`, {
+      method: `POST`,
+      headers: {
+        'Content-Type': `application/json`,
+      },
+    })
+      .then(response => response.json())
+      .then((resp) => {
+        console.log(`publish resp: `, resp)
+        ElNotification({
+          title: `发布成功`,
+          message: `${resp.id} 成功发布到微信草稿箱`,
+          type: `success`,
+        })
+      })
+  }
+  catch (error) {
+    console.error(`catched: `, error)
+    loading.value = false
+  }
   return
   window.syncPost({
     thumb: auto.thumb,
@@ -297,6 +319,13 @@ async function loadRemoteAndPost() {
   // 点击同步
   const syncBtn = document.querySelector(`div[aria-label='同步文章'] .el-dialog__footer button`)
   syncBtn.click()
+}
+
+async function loadRemoteAndPostInARow() {
+  while (!haltPosting.value) {
+    await loadRemoteAndPost()
+    await sleep(1000)
+  }
 }
 
 async function inputTxt() {
@@ -460,7 +489,7 @@ function copy() {
     <el-button plain type="primary" @click="loadRemote">
       远程加载
     </el-button>
-    <el-button plain type="primary" @click="loadRemoteAndPost">
+    <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostInARow">
       自动发布
     </el-button>
     <el-button plain type="primary" @click="inputTxt">
