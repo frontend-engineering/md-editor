@@ -27,7 +27,7 @@ jobs:
           cos_region: ${{ secrets.COS_REGION }}
           local_path: dist
           remote_path: md
-          clean: false
+          clean: true
 
       - id: purge
         run: TENCENT_SEC_ID=${{ secrets.TENCENT_SEC_ID }} TENCENT_SEC_KEY=${{ secrets.TENCENT_SEC_KEY }} DOMAIN=${{ secrets.DOMAIN }} npm run purge
