@@ -141,7 +141,7 @@ async function loadRemote() {
         return null
       const { content: apiResponseText, title, id } = postData
       const editorDom = document.querySelector(`#editor`)
-      editorDom.value = `# ${title}\n\n ![img](${urls[0]})\n\n${apiResponseText}`
+      editorDom.value = `# ${title}\n\n ![${title}](${urls[0]})\n\n${apiResponseText}`
       // const editor = CodeMirror.fromTextArea(editorDom, {})
       // editor.value = `fdsafdsafds`
       editor.value = CodeMirror.fromTextArea(editorDom, {
