@@ -259,7 +259,8 @@ async function loadRemoteAndPost() {
       title: [1, 2, 3, 4, 5, 6]
         .map(h => document.querySelector(`#output h${h}`))
         .filter(h => h)[0].textContent,
-      desc: document.querySelector(`#output p`).textContent,
+      desc: document.querySelector('#output p')?.textContent ||
+            document.querySelector('#output h2')?.textContent || '',
       content: output.value,
     }
     console.log(`sync auto: `, auto)
