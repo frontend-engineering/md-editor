@@ -264,7 +264,7 @@ async function loadRemoteAndPostTuwen() {
 async function loadRemoteAndPost(isTuwen) {
   loading.value = true
   try {
-    const postId = await loadRemote()
+    const postId = await loadRemote(isTuwen)
     if (!postId) {
       // all post published
       haltPosting.value = true
