@@ -300,7 +300,7 @@ async function loadRemoteAndPost(isTuwen) {
         loading.value = false
 
         ElNotification({
-          title: `${isTuWenType ? `图文消息` : `消息`}发布成功`,
+          title: `${isTuwen ? `图文消息` : `消息`}发布成功`,
           message: `${resp.id} 成功发布到微信草稿箱`,
           type: `success`,
         })
