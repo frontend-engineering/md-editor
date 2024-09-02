@@ -1,3 +1,4 @@
+<!-- eslint-disable unicorn/prefer-dom-node-text-content -->
 <!-- eslint-disable antfu/top-level-function -->
 <script setup>
 import { computed, nextTick, ref } from 'vue'
@@ -130,10 +131,10 @@ async function getRandomImgs() {
     })
 }
 
-async function loadRemote() {
-  const postPromise = fetch(`https://my.webinfra.cloud/api/rewritedButUnpublishedPost`)
+async function loadRemote(isTuwen) {
+  const postPromise = fetch(`https://my.webinfra.cloud/api/${isTuwen ? `publishedOncePost` : `rewritedButUnpublishedPost`}`)
     .then(response => response.json())
-  return Promise.all([getRandomImgs(), postPromise])
+  return Promise.all([isTuwen ? Promise.resolve([]) : getRandomImgs(), postPromise])
     .then(async (resp) => {
       const [urls, postData] = resp
       console.log(`load remote data: `, urls, postData)
@@ -141,7 +142,7 @@ async function loadRemote() {
         return null
       const { content: apiResponseText, title, id } = postData
       const editorDom = document.querySelector(`#editor`)
-      editorDom.value = `# ${title}\n\n ![${title}](${urls[0]})\n\n${apiResponseText}`
+      editorDom.value = `# ${title}\n\n ![${title}](${isTuwen ? `` : urls[0]})\n\n${apiResponseText}`
       // const editor = CodeMirror.fromTextArea(editorDom, {})
       // editor.value = `fdsafdsafds`
       editor.value = CodeMirror.fromTextArea(editorDom, {
@@ -191,11 +192,22 @@ async function loadRemote() {
 }
 
 async function doSubmit(article) {
-  function getPost() {
+  function getPost(tuwen) {
     const post = { article }
     post.title = article.title
     if (article.content) {
-      post.content = article.content
+      if (tuwen) {
+        const parser = new DOMParser()
+        const doc = parser.parseFromString(article.content, `text/html`)
+        console.log(`parsed doc: `, doc)
+        console.log(`parsed doc: `, doc.body, doc?.body.innerText)
+        const txt = doc?.body?.innerText.slice(0, 900)
+        post.content = `${txt} 阅读更多...`
+        // post.thumb = `https://assets.greatermaker.cn/images/unsplash-photo-1590496793929-36417d3117de-regular.jpeg`
+      }
+      else {
+        post.content = article.content
+      }
     }
     else if (article.markdown) {
       post.markdown = article.content
@@ -208,6 +220,7 @@ async function doSubmit(article) {
       ? article.desc
       : article.content.substring(0, 20)
     // post.desc = document.body.getAttribute('data-msg_desc');
+    post.isTuWenType = !!tuwen
     console.log(post)
     return post
   }
@@ -226,16 +239,16 @@ async function doSubmit(article) {
   return new Promise((resolve) => {
     window.$syncer.addTask(
       {
-        post: getPost(),
+        post: getPost(article?.isTuwen),
         accounts: selectedAc,
       },
       (status) => {
-        console.log(`status`, status)
+        console.log(`status1 - `, status)
         if (status?.status === `done`) {
           resolve(status)
         }
         else if (status?.status !== `uploading`) {
-          rejects(staus)
+          rejects(status)
         }
       },
       () => {
@@ -244,7 +257,11 @@ async function doSubmit(article) {
     )
   })
 }
-async function loadRemoteAndPost() {
+
+async function loadRemoteAndPostTuwen() {
+  return loadRemoteAndPost(true)
+}
+async function loadRemoteAndPost(isTuwen) {
   loading.value = true
   try {
     const postId = await loadRemote()
@@ -259,8 +276,8 @@ async function loadRemoteAndPost() {
       title: [1, 2, 3, 4, 5, 6]
         .map(h => document.querySelector(`#output h${h}`))
         .filter(h => h)[0].textContent,
-      desc: document.querySelector('#output p')?.textContent ||
-            document.querySelector('#output h2')?.textContent || '',
+      desc: document.querySelector(`#output p`)?.textContent
+      || document.querySelector(`#output h2`)?.textContent || ``,
       content: output.value,
     }
     console.log(`sync auto: `, auto)
@@ -269,8 +286,9 @@ async function loadRemoteAndPost() {
       title: auto.title,
       desc: auto.desc,
       content: auto.content,
+      isTuwen,
     })
-    return fetch(`https://my.webinfra.cloud/api/post/${postId}/publish`, {
+    return fetch(`https://my.webinfra.cloud/api/post/${postId}/${isTuwen ? `tuwenPublish` : `publish`}`, {
       method: `POST`,
       headers: {
         'Content-Type': `application/json`,
@@ -279,8 +297,10 @@ async function loadRemoteAndPost() {
       .then(response => response.json())
       .then((resp) => {
         console.log(`publish resp: `, resp)
+        loading.value = false
+
         ElNotification({
-          title: `发布成功`,
+          title: `${isTuWenType ? `图文消息` : `消息`}发布成功`,
           message: `${resp.id} 成功发布到微信草稿箱`,
           type: `success`,
         })
@@ -322,62 +342,66 @@ async function loadRemoteAndPost() {
   syncBtn.click()
 }
 
-async function loadRemoteAndPostInARow() {
+async function loadRemoteAndPostInARow(isTuwen) {
   while (!haltPosting.value) {
-    await loadRemoteAndPost()
+    await loadRemoteAndPost(isTuwen)
     await sleep(1000)
   }
 }
 
-async function inputTxt() {
-  const txt = await navigator.clipboard.readText()
-  const editorDom = document.querySelector(`#editor`)
-  editorDom.value = txt
-  // const editor = CodeMirror.fromTextArea(editorDom, {})
-  // editor.value = `fdsafdsafds`
-  editor.value = CodeMirror.fromTextArea(editorDom, {
-    mode: `text/x-markdown`,
-    theme: `xq-light`,
-    lineNumbers: false,
-    lineWrapping: true,
-    styleActiveLine: true,
-    autoCloseBrackets: true,
-    extraKeys: {
-      [`${modPrefix}-F`]: function autoFormat(editor) {
-        const doc = formatDoc(editor.getValue(0))
-        editor.setValue(doc)
-      },
-      [`${modPrefix}-B`]: function bold(editor) {
-        const selected = editor.getSelection()
-        editor.replaceSelection(`**${selected}**`)
-      },
-      [`${modPrefix}-I`]: function italic(editor) {
-        const selected = editor.getSelection()
-        editor.replaceSelection(`*${selected}*`)
-      },
-      [`${modPrefix}-D`]: function del(editor) {
-        const selected = editor.getSelection()
-        editor.replaceSelection(`~~${selected}~~`)
-      },
-      [`${modPrefix}-K`]: function italic(editor) {
-        const selected = editor.getSelection()
-        editor.replaceSelection(`[${selected}]()`)
-      },
-      [`${modPrefix}-E`]: function code(editor) {
-        const selected = editor.getSelection()
-        editor.replaceSelection(`\`${selected}\``)
-      },
-      // 预备弃用
-      [`${modPrefix}-L`]: function code(editor) {
-        const selected = editor.getSelection()
-        editor.replaceSelection(`\`${selected}\``)
-      },
-    },
-  })
-
-  editorContent.value = editor.value
-  editorRefresh()
+async function loadRemoteAndPostTuwenInARow() {
+  return loadRemoteAndPostInARow(true)
 }
+
+// async function inputTxt() {
+//   const txt = await navigator.clipboard.readText()
+//   const editorDom = document.querySelector(`#editor`)
+//   editorDom.value = txt
+//   // const editor = CodeMirror.fromTextArea(editorDom, {})
+//   // editor.value = `fdsafdsafds`
+//   editor.value = CodeMirror.fromTextArea(editorDom, {
+//     mode: `text/x-markdown`,
+//     theme: `xq-light`,
+//     lineNumbers: false,
+//     lineWrapping: true,
+//     styleActiveLine: true,
+//     autoCloseBrackets: true,
+//     extraKeys: {
+//       [`${modPrefix}-F`]: function autoFormat(editor) {
+//         const doc = formatDoc(editor.getValue(0))
+//         editor.setValue(doc)
+//       },
+//       [`${modPrefix}-B`]: function bold(editor) {
+//         const selected = editor.getSelection()
+//         editor.replaceSelection(`**${selected}**`)
+//       },
+//       [`${modPrefix}-I`]: function italic(editor) {
+//         const selected = editor.getSelection()
+//         editor.replaceSelection(`*${selected}*`)
+//       },
+//       [`${modPrefix}-D`]: function del(editor) {
+//         const selected = editor.getSelection()
+//         editor.replaceSelection(`~~${selected}~~`)
+//       },
+//       [`${modPrefix}-K`]: function italic(editor) {
+//         const selected = editor.getSelection()
+//         editor.replaceSelection(`[${selected}]()`)
+//       },
+//       [`${modPrefix}-E`]: function code(editor) {
+//         const selected = editor.getSelection()
+//         editor.replaceSelection(`\`${selected}\``)
+//       },
+//       // 预备弃用
+//       [`${modPrefix}-L`]: function code(editor) {
+//         const selected = editor.getSelection()
+//         editor.replaceSelection(`\`${selected}\``)
+//       },
+//     },
+//   })
+
+//   editorContent.value = editor.value
+//   editorRefresh()
+// }
 
 // 复制到微信公众号
 function copy() {
@@ -493,8 +517,14 @@ function copy() {
     <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostInARow">
       自动发布
     </el-button>
-    <el-button plain type="primary" @click="inputTxt">
-      加载剪贴板
+    <el-button plain type="primary" @click="loadRemoteAndPost">
+      单次发布
+    </el-button>
+    <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostTuwenInARow">
+      自动发布图文
+    </el-button>
+    <el-button plain type="primary" @click="loadRemoteAndPostTuwen">
+      单次发布图文
     </el-button>
     <el-button plain type="primary" @click="copy">
       复制
