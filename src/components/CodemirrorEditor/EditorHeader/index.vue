@@ -511,7 +511,7 @@ function copy() {
       <StyleDropdown />
       <HelpDropdown />
     </el-space>
-    <el-button plain type="primary" @click="loadRemote">
+    <el-button plain type="primary" @click="() => loadRemote()">
       远程加载
     </el-button>
     <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostInARow">
