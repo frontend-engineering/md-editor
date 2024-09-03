@@ -511,19 +511,19 @@ function copy() {
       <StyleDropdown />
       <HelpDropdown />
     </el-space>
-    <el-button plain type="primary" @click="() => loadRemote()">
+    <el-button plain type="primary" :loading="loading" @click="() => loadRemote()">
       远程加载
     </el-button>
     <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostInARow">
       自动发布
     </el-button>
-    <el-button plain type="primary" @click="loadRemoteAndPost">
+    <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPost">
       单次发布
     </el-button>
     <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostTuwenInARow">
       自动发布图文
     </el-button>
-    <el-button plain type="primary" @click="loadRemoteAndPostTuwen">
+    <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostTuwen">
       单次发布图文
     </el-button>
     <el-button plain type="primary" @click="copy">
