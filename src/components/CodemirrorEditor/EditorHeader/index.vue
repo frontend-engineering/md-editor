@@ -131,6 +131,75 @@ async function getRandomImgs() {
     })
 }
 
+async function loadRmoteByChannel(channel) {
+  let method = '',promotion = ''
+  if(channel === 'zhihu') {
+    method = 'zhihuUnpublishedPost'
+    promotion = '更多详情请关注只冲WMS官网：[https://wms.webinfra.cloud](https://wms.webinfra.cloud?from=zhihu)\n公众号请关注：[webinfra](https://wms.webinfra.cloud/wechat-qr.jpg)'
+  } else {
+    method = 'baijiahaoUnpublishedPost'
+    promotion = '更多详情请关注只冲WMS官网：[https://wms.webinfra.cloud](https://wms.webinfra.cloud?from=baijiahao)\n公众号请关注：[webinfra](https://wms.webinfra.cloud/wechat-qr.jpg)'
+  }
+  const postPromise = fetch(`https://my.webinfra.cloud/api/${method}`)
+    .then(response => response.json())
+  return Promise.all([getRandomImgs(), postPromise])
+    .then(async (resp) => {
+      const [urls, postData] = resp
+      console.log(`loadRmoteByChannel: `, channel, urls, postData)
+      if (!postData)
+        return null
+      const { content: apiResponseText, title, id } = postData
+      const editorDom = document.querySelector(`#editor`)
+      const captainImg = `\n\n ![${title}](${urls[0]})`
+      editorDom.value = `# ${title}${captainImg}\n\n${apiResponseText}\n\n${promotion}`
+      // const editor = CodeMirror.fromTextArea(editorDom, {})
+      // editor.value = `fdsafdsafds`
+      editor.value = CodeMirror.fromTextArea(editorDom, {
+        mode: `text/x-markdown`,
+        theme: `xq-light`,
+        lineNumbers: false,
+        lineWrapping: true,
+        styleActiveLine: true,
+        autoCloseBrackets: true,
+        extraKeys: {
+          [`${modPrefix}-F`]: function autoFormat(editor) {
+            const doc = formatDoc(editor.getValue(0))
+            editor.setValue(doc)
+          },
+          [`${modPrefix}-B`]: function bold(editor) {
+            const selected = editor.getSelection()
+            editor.replaceSelection(`**${selected}**`)
+          },
+          [`${modPrefix}-I`]: function italic(editor) {
+            const selected = editor.getSelection()
+            editor.replaceSelection(`*${selected}*`)
+          },
+          [`${modPrefix}-D`]: function del(editor) {
+            const selected = editor.getSelection()
+            editor.replaceSelection(`~~${selected}~~`)
+          },
+          [`${modPrefix}-K`]: function italic(editor) {
+            const selected = editor.getSelection()
+            editor.replaceSelection(`[${selected}]()`)
+          },
+          [`${modPrefix}-E`]: function code(editor) {
+            const selected = editor.getSelection()
+            editor.replaceSelection(`\`${selected}\``)
+          },
+          // 预备弃用
+          [`${modPrefix}-L`]: function code(editor) {
+            const selected = editor.getSelection()
+            editor.replaceSelection(`\`${selected}\``)
+          },
+        },
+      })
+
+      editorContent.value = editor.value
+      await editorRefresh()
+      return id
+    })
+}
+
 async function loadRemote(isTuwen) {
   const postPromise = fetch(`https://my.webinfra.cloud/api/${isTuwen ? `publishedOncePost` : `rewritedButUnpublishedPost`}`)
     .then(response => response.json())
@@ -226,6 +295,27 @@ async function doSubmit(article) {
     return post
   }
 
+  function getPostByChannel(channel) {
+    const post = { article }
+    post.title = article.title
+    if (article.content) {
+      post.content = article.content
+    }
+    else if (article.markdown) {
+      post.markdown = article.content
+    }
+    if (article.thumb) {
+      post.thumb = article.thumb
+    }
+
+    post.desc = article.desc
+      ? article.desc
+      : article.content.substring(0, 20)
+    // post.desc = document.body.getAttribute('data-msg_desc');
+    console.log('getPostByChannel: ', post)
+    return post
+  }
+
   const getSelectedAc = async () => {
     return new Promise((resolve) => {
       window.$syncer.getAccounts((resp) => {
@@ -235,12 +325,28 @@ async function doSubmit(article) {
     }).then(list => list.filter(item => item.type === `weixin`))
   }
 
-  const selectedAc = await getSelectedAc()
+  const getSelectedAcByChannel = async (channel) => {
+    console.log('---getSelectedAcByChannel: ', channel)
+    return new Promise((resolve) => {
+      window.$syncer.getAccounts((resp) => {
+        console.log(`getSelectedAcByChannel allAccounts`, resp)
+        resolve(resp)
+      })
+    }).then(list => list.filter(item => item.type === channel))
+  }
+
+  let selectedAc
+  if (article.channel) {
+    selectedAc = await getSelectedAcByChannel(article.channel)
+  } else {
+    selectedAc = await getSelectedAc()
+  }
+  //const selectedAc = await getSelectedAc()
 
   return new Promise((resolve) => {
     window.$syncer.addTask(
       {
-        post: getPost(article?.isTuwen),
+        post: article.channel ? getPostByChannel(article.channel) : getPost(article?.isTuwen),
         accounts: selectedAc,
       },
       (status) => {
@@ -259,9 +365,85 @@ async function doSubmit(article) {
   })
 }
 
+async function loadRemoteAndPostZhihu() {
+  return loadRemoteAndPostByChannel('zhihu')
+}
+
+async function loadRemoteAndPostZhihuInARow() {
+  return loadRemoteAndPostByChannelInARow('zhihu')
+}
+
+async function loadRemoteAndPostBaijiahao() {
+  return loadRemoteAndPostByChannel('baijiahao')
+}
+
+async function loadRemoteAndPostBaijiahaoInARow() {
+  return loadRemoteAndPostByChannelInARow('baijiahao')
+}
+
 async function loadRemoteAndPostTuwen() {
   return loadRemoteAndPost(true)
 }
+
+async function loadRemoteAndPostByChannel(channel) {
+  loading.value = true
+  try {
+    const postId = await loadRmoteByChannel(channel)
+    if (!postId) {
+      // all post published
+      haltPosting.value = true
+    }
+    await sleep(1000)
+
+    const auto = {
+      thumb: document.querySelector(`#output img`)?.src,
+      title: [1, 2, 3, 4, 5, 6]
+        .map(h => document.querySelector(`#output h${h}`))
+        .filter(h => h)[0].textContent,
+      desc: document.querySelector(`#output p`)?.textContent
+      || document.querySelector(`#output h2`)?.textContent || ``,
+      content: output.value,
+    }
+    console.log(`sync auto: `, auto)
+    await doSubmit({
+      thumb: auto.thumb,
+      title: auto.title,
+      desc: auto.desc,
+      content: auto.content,
+      channel,
+    })
+    let method = '', channelName = ''
+    if (channel === 'zhihu') {
+      method = 'zhihuPublish'
+      channelName = '知乎'
+    } else {
+      method = 'baijiahaoPublish'
+      channelName = '百家号'
+    }
+    return fetch(`https://my.webinfra.cloud/api/post/${postId}/${method}`, {
+      method: `POST`,
+      headers: {
+        'Content-Type': `application/json`,
+      },
+    })
+      .then(response => response.json())
+      .then((resp) => {
+        console.log(`publish resp: `, resp)
+        loading.value = false
+
+        ElNotification({
+          title: `${channelName}消息发布成功`,
+          message: `${resp.id} 成功发布到${channelName}草稿箱`,
+          type: `success`,
+        })
+      })
+  }
+  catch (error) {
+    console.error(`catched: `, error)
+    loading.value = false
+  }
+}
+
 async function loadRemoteAndPost(isTuwen) {
   loading.value = true
   try {
@@ -352,6 +534,13 @@ async function loadRemoteAndPostInARow(isTuwen) {
 
 async function loadRemoteAndPostTuwenInARow() {
   return loadRemoteAndPostInARow(true)
+}
+
+async function loadRemoteAndPostByChannelInARow(channel) {
+  while (!haltPosting.value) {
+    await loadRemoteAndPostByChannel(channel)
+    await sleep(1000)
+  }
 }
 
 // async function inputTxt() {
@@ -526,6 +715,12 @@ function copy() {
     </el-button>
     <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostTuwen">
       单次发布图文
+    </el-button>
+    <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostZhihuInARow">
+      知乎自动发布
+    </el-button>
+    <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostZhihu">
+      知乎单次发布
     </el-button>
     <el-button plain type="primary" @click="copy">
       复制
