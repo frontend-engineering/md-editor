@@ -423,7 +423,7 @@ onMounted(() => {
 <template>
   <div ref="container" class="container">
     <el-container>
-      <el-header class="editor__header">
+      <el-header height="80px" class="editor__header">
         <EditorHeader
           @add-format="addFormat"
           @format-content="formatContent"

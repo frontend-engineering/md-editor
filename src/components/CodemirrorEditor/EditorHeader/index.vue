@@ -135,10 +135,10 @@ async function loadRmoteByChannel(channel) {
   let method = '',promotion = ''
   if(channel === 'zhihu') {
     method = 'zhihuUnpublishedPost'
-    promotion = '更多详情请关注只冲WMS官网：[https://wms.webinfra.cloud](https://wms.webinfra.cloud?from=zhihu)\n公众号请关注：[webinfra](https://wms.webinfra.cloud/wechat-qr.jpg)'
+    promotion = '更多详情请关注只冲WMS官网：[https://wms.webinfra.cloud](https://wms.webinfra.cloud?from=zhihu)'
   } else {
     method = 'baijiahaoUnpublishedPost'
-    promotion = '更多详情请关注只冲WMS官网：[https://wms.webinfra.cloud](https://wms.webinfra.cloud?from=baijiahao)\n公众号请关注：[webinfra](https://wms.webinfra.cloud/wechat-qr.jpg)'
+    promotion = '[**只冲WMS**](https://wms.webinfra.cloud?from=baijiahao): 凭借15年深耕仓储行业的信息化经验，我们为企业管理者、员工和合作伙伴量身打造强大高效的仓库管理系统，助力企业优化运营、降本增效'
   }
   const postPromise = fetch(`https://my.webinfra.cloud/api/${method}`)
     .then(response => response.json())
@@ -151,7 +151,7 @@ async function loadRmoteByChannel(channel) {
       const { content: apiResponseText, title, id } = postData
       const editorDom = document.querySelector(`#editor`)
       const captainImg = `\n\n ![${title}](${urls[0]})`
-      editorDom.value = `# ${title}${captainImg}\n\n${apiResponseText}\n\n${promotion}`
+      editorDom.value = `# ${title}${captainImg}\n\n${apiResponseText}\n\n${promotion}\n\n`
       // const editor = CodeMirror.fromTextArea(editorDom, {})
       // editor.value = `fdsafdsafds`
       editor.value = CodeMirror.fromTextArea(editorDom, {
@@ -701,40 +701,59 @@ function copy() {
       <StyleDropdown />
       <HelpDropdown />
     </el-space>
-    <el-button plain type="primary" :loading="loading" @click="() => loadRemote()">
-      远程加载
-    </el-button>
-    <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostInARow">
-      自动发布
-    </el-button>
-    <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPost">
-      单次发布
-    </el-button>
-    <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostTuwenInARow">
-      自动发布图文
-    </el-button>
-    <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostTuwen">
-      单次发布图文
-    </el-button>
-    <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostZhihuInARow">
-      知乎自动发布
-    </el-button>
-    <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostZhihu">
-      知乎单次发布
-    </el-button>
-    <el-button plain type="primary" @click="copy">
-      复制
-    </el-button>
-
-    <PostInfo />
+    <div class="btn-wapper">
+      <div>
+        <el-button plain type="primary" :loading="loading" @click="() => loadRemote()">
+          远程加载
+        </el-button>
+        <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostInARow">
+          自动发布
+        </el-button>
+        <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPost">
+          单次发布
+        </el-button>
+        <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostTuwenInARow">
+          自动发布图文
+        </el-button>
+        <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostTuwen">
+          单次发布图文
+        </el-button>
+        <el-button plain type="primary" @click="copy">
+          复制
+        </el-button>
+      </div>
+      <div>
+        <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostZhihuInARow">
+          知乎自动发布
+        </el-button>
+        <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostZhihu">
+          知乎单次发布
+        </el-button>
+        <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostBaijiahaoInARow">
+          百家号自动发布
+        </el-button>
+        <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostBaijiahao">
+          百家号单次发布
+        </el-button>
+        <PostInfo />
+      </div>
+    </div>
   </div>
 </template>
 
 <style lang="less" scoped>
 .header-container {
   display: flex;
+  justify-content: space-around;
   align-items: center;
   height: 100%;
   padding: 0 20px;
+}
+.btn-wapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
 </style>
