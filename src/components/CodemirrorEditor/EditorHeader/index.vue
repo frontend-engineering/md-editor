@@ -39,6 +39,7 @@ async function sleep(timeout) {
 }
 const loading = ref(false)
 const haltPosting = ref(false)
+const countDown = ref(10)
 
 const defaultKeyMap = CodeMirror.keyMap.default
 const modPrefix
@@ -526,8 +527,17 @@ async function loadRemoteAndPost(isTuwen) {
 }
 
 async function loadRemoteAndPostInARow(isTuwen) {
+  haltPosting.value = false
   while (!haltPosting.value) {
     await loadRemoteAndPost(isTuwen)
+    countDown.value -= 1
+    console.log(`-----count down: `, countDown.value)
+    if (countDown.value <= 0) {
+      haltPosting.value = true
+      loading.value = false
+      countDown.value = 10
+      console.log('自动发布每次只能发布十篇文章，结束后请再次点击自动发布')
+    }
     await sleep(1000)
   }
 }
@@ -537,8 +547,17 @@ async function loadRemoteAndPostTuwenInARow() {
 }
 
 async function loadRemoteAndPostByChannelInARow(channel) {
+  haltPosting.value = false
   while (!haltPosting.value) {
     await loadRemoteAndPostByChannel(channel)
+    countDown.value -= 1
+    console.log(`-----count down: `, countDown.value)
+    if (countDown.value <= 0) {
+      haltPosting.value = true
+      loading.value = false
+      countDown.value = 10
+      console.log('自动发布每次只能发布十篇文章，结束后请再次点击自动发布')
+    }
     await sleep(1000)
   }
 }
