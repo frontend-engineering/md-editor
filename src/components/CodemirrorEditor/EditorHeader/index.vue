@@ -133,26 +133,32 @@ async function getRandomImgs() {
 }
 
 async function loadRmoteByChannel(channel) {
-  let method = '',promotion = ''
+  let method = '',promotion = '',promotionDetail = ''
   if(channel === 'zhihu') {
     method = 'zhihuUnpublishedPost'
-    promotion = '更多详情请关注只冲WMS官网：[https://wms.webinfra.cloud](https://wms.webinfra.cloud?from=zhihu)'
+    promotion = '更多详情请关注<span><a href=\"https://wms.webinfra.cloud?from=zhihu\"><b>只冲WMS官网</b></a></span>'
   } else {
     method = 'baijiahaoUnpublishedPost'
-    promotion = '[**只冲WMS**](https://wms.webinfra.cloud?from=baijiahao): 凭借15年深耕仓储行业的信息化经验，我们为企业管理者、员工和合作伙伴量身打造强大高效的仓库管理系统，助力企业优化运营、降本增效'
+    promotion = '更多详情请关注只冲WMS官网[https://wms.webinfra.cloud?from=baijiahao](https://wms.webinfra.cloud?from=baijiahao)'
   }
+  promotionDetail = `**关于只冲WMS**\n\n只冲WMS在仓储行业拥有多年的洞察经验，以及十年以上的信息技术积累，致力于为仓储企业的管理者、员工、合作伙伴提供强大高效的仓库管理系统。${promotion}`
   const postPromise = fetch(`https://my.webinfra.cloud/api/${method}`)
     .then(response => response.json())
   return Promise.all([getRandomImgs(), postPromise])
     .then(async (resp) => {
       const [urls, postData] = resp
+      const searchText = "关于只冲WMS"
       console.log(`loadRmoteByChannel: `, channel, urls, postData)
       if (!postData)
         return null
       const { content: apiResponseText, title, id } = postData
       const editorDom = document.querySelector(`#editor`)
       const captainImg = `\n\n ![${title}](${urls[0]})`
-      editorDom.value = `# ${title}${captainImg}\n\n${apiResponseText}\n\n${promotion}\n\n`
+      if (apiResponseText.includes(searchText)) {
+        editorDom.value = `# ${title}${captainImg}\n\n${apiResponseText}\n\n${promotion}\n\n`
+      } else {
+        editorDom.value = `# ${title}${captainImg}\n\n${apiResponseText}\n\n${promotionDetail}\n\n`
+      }
       // const editor = CodeMirror.fromTextArea(editorDom, {})
       // editor.value = `fdsafdsafds`
       editor.value = CodeMirror.fromTextArea(editorDom, {
@@ -722,7 +728,7 @@ function copy() {
     </el-space>
     <div class="btn-wapper">
       <div>
-        <el-button plain type="primary" :loading="loading" @click="() => loadRemote()">
+        <el-button plain type="primary" :loading="loading" @click="() => loadRmoteByChannel('baijiahao')">
           远程加载
         </el-button>
         <el-button plain type="primary" :loading="loading" @click="loadRemoteAndPostInARow">
