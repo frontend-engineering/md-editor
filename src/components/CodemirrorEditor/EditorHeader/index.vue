@@ -136,7 +136,7 @@ async function loadRmoteByChannel(channel) {
   let method = '',promotion = '',promotionDetail = ''
   if(channel === 'zhihu') {
     method = 'zhihuUnpublishedPost'
-    promotion = '更多详情请关注:<span><a href=\"https://wms.webinfra.cloud?from=zhihu\"><b>只冲WMS官网</b></a></span>或公众号:<span><a href=\"https://mp.weixin.qq.com/s/fFVXMiTpipV-HkrjLinahw\"><b>webinfra</b></a></span>'
+    promotion = '更多详情请关注<span><a href=\"https://wms.webinfra.cloud?from=zhihu\"><b>只冲WMS官网</b></a></span>'
   } else {
     method = 'baijiahaoUnpublishedPost'
     promotion = '更多详情请关注只冲WMS官网[https://wms.webinfra.cloud?from=baijiahao](https://wms.webinfra.cloud?from=baijiahao)'
